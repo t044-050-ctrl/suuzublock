@@ -1,0 +1,1563 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>数図ブロック Webアプリ</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+      margin: 0;
+      padding: 0;
+    }
+    html, body {
+      width: 100%;
+      height: 100%;
+      background-color: #ffffff;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden;
+      font-family: 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', Meiryo, sans-serif;
+    }
+    #stage-container {
+      position: relative;
+      width: 100vw;
+      height: 56.25vw;
+      max-height: 100vh;
+      max-width: 177.78vh;
+      background-color: #ffffff;
+      container-type: inline-size;
+    }
+    canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      touch-action: none;
+    }
+    .toolbar {
+      position: absolute;
+      top: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 20px;
+      z-index: 10;
+      background: rgba(248, 250, 252, 0.94);
+      backdrop-filter: blur(8px);
+      padding: 8px 16px;
+      border-radius: 18px;
+      border: 1px solid rgba(203, 213, 225, 0.8);
+      align-items: center;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.06);
+    }
+    .btn-square {
+      width: 62px;
+      height: 62px;
+      border: 1.5px solid #cbd5e1;
+      background: #ffffff;
+      border-radius: 12px;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      gap: 3px;
+      transition: all 0.12s ease;
+      color: #334155;
+      font-size: 13px;
+      font-weight: bold;
+      padding: 3px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+    .btn-square:hover {
+      background: #f1f5f9;
+      transform: translateY(-1px);
+    }
+    .btn-square:active {
+      transform: scale(0.96);
+    }
+    .btn-square.active {
+      background: #ffffff;
+      border: 2.5px solid #00B0F0;
+      color: #000000;
+      box-shadow: 0 0 0 1px #00B0F0;
+    }
+    .btn-square .icon {
+      font-size: 22px;
+      line-height: 1;
+    }
+    .btn-group {
+      display: flex;
+      gap: 10px;
+      background: #f1f5f9;
+      padding: 5px;
+      border-radius: 14px;
+    }
+    .btn-add-left, .btn-add-right {
+      position: absolute;
+      top: 96px;
+      z-index: 10;
+      width: 58px;
+      height: 58px;
+      border-radius: 14px;
+      font-size: 32px;
+      font-weight: bold;
+      background: #3b82f6;
+      color: #ffffff;
+      border: none;
+      cursor: pointer;
+      box-shadow: 0 4px 10px rgba(59, 130, 246, 0.35);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      transition: all 0.12s ease;
+    }
+    .btn-add-left { left: 20px; }
+    .btn-add-right { right: 20px; }
+    .btn-add-left:hover, .btn-add-right:hover {
+      background: #2563eb;
+      transform: translateY(-1px);
+    }
+    .btn-add-left:active, .btn-add-right:active {
+      transform: scale(0.95);
+    }
+    .count-badge {
+      position: absolute;
+      top: 158px;
+      z-index: 10;
+      width: 58px;
+      text-align: center;
+      font-size: 16px;
+      font-weight: bold;
+      color: #64748b;
+      pointer-events: none;
+    }
+    .count-left { left: 20px; }
+    .count-right { right: 20px; }
+
+    .color-mark {
+      width: 20px;
+      height: 20px;
+      display: inline-block;
+    }
+    .color-dot-orange {
+      background: #f97316;
+      border-radius: 50%;
+    }
+    .color-square-blue {
+      background: #2563eb;
+      border-radius: 4px;
+    }
+
+    .btn-stop {
+      position: absolute;
+      bottom: 20px;
+      left: 20px;
+      width: 58px;
+      height: 58px;
+      border-radius: 14px;
+      border: 2px solid #548235;
+      background-color: #CCFFCC;
+      color: #548235;
+      font-size: 14px;
+      font-weight: bold;
+      cursor: pointer;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 15;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+      transition: all 0.12s ease;
+    }
+    .btn-stop:hover {
+      transform: translateY(-1px);
+      background-color: #bbf8bb;
+    }
+    .btn-stop:active {
+      transform: scale(0.95);
+    }
+
+    #pause-screen {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: #c8f7c5;
+      z-index: 100;
+      display: none;
+      align-items: center;
+    }
+
+    .pause-text-container {
+      position: absolute;
+      left: 100px;
+      right: 20px;
+      top: 0;
+      bottom: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .pause-text {
+      font-size: clamp(32px, 6.2cqi, 76px);
+      font-weight: bold;
+      color: #3e6b22;
+      letter-spacing: 2px;
+      text-shadow: 0 1px 2px rgba(255,255,255,0.6);
+      white-space: nowrap;
+      text-align: center;
+    }
+
+    .btn-start {
+      position: absolute;
+      bottom: 20px;
+      left: 20px;
+      width: 58px;
+      height: 58px;
+      border-radius: 14px;
+      border: 2px solid #6096D7;
+      background-color: #D3E9F5;
+      color: #6096D7;
+      font-size: 11px;
+      font-weight: bold;
+      cursor: pointer;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+      transition: all 0.12s ease;
+      z-index: 101;
+      white-space: nowrap;
+    }
+    .btn-start:hover {
+      transform: translateY(-1px);
+      background-color: #c4e3f2;
+    }
+    .btn-start:active {
+      transform: scale(0.95);
+    }
+  </style>
+</head>
+<body>
+
+<div id="stage-container">
+  <canvas id="mainCanvas" width="1280" height="720"></canvas>
+
+  <div class="toolbar">
+    <div class="btn-group">
+      <button class="btn-square active" id="btn-type-orange" onclick="setType('orange')">
+        <span class="color-mark color-dot-orange"></span>
+        <span>オレンジ</span>
+      </button>
+      <button class="btn-square" id="btn-type-blue" onclick="setType('blue')">
+        <span class="color-mark color-square-blue"></span>
+        <span>あお</span>
+      </button>
+      <button class="btn-square" id="btn-tray" onclick="addTray()">
+        <svg class="icon" width="32" height="20" viewBox="0 0 32 20" fill="none">
+          <rect x="1" y="1" width="30" height="18" rx="3" fill="#f8fafc" stroke="#2563eb" stroke-width="2"/>
+          <line x1="1" y1="10" x2="31" y2="10" stroke="#93c5fd" stroke-width="1.2"/>
+          <line x1="7" y1="1" x2="7" y2="19" stroke="#93c5fd" stroke-width="1.2"/>
+          <line x1="13" y1="1" x2="13" y2="19" stroke="#93c5fd" stroke-width="1.2"/>
+          <line x1="19" y1="1" x2="19" y2="19" stroke="#93c5fd" stroke-width="1.2"/>
+          <line x1="25" y1="1" x2="25" y2="19" stroke="#93c5fd" stroke-width="1.2"/>
+        </svg>
+        <span>トレー</span>
+      </button>
+      <button class="btn-square" id="btn-reset" onclick="resetAll()">
+        <svg class="icon" width="30" height="30" viewBox="0 0 32 32" fill="none">
+          <path d="M 7 12 L 25 12 L 23 27 C 23 28.5 21.5 29.5 20 29.5 L 12 29.5 C 10.5 29.5 9 28.5 9 27 Z" fill="#64748b" stroke="#cbd5e1" stroke-width="1.8"/>
+          <line x1="12" y1="15" x2="13" y2="26" stroke="#cbd5e1" stroke-width="1.5"/>
+          <line x1="16" y1="15" x2="16" y2="26" stroke="#cbd5e1" stroke-width="1.5"/>
+          <line x1="20" y1="15" x2="19" y2="26" stroke="#cbd5e1" stroke-width="1.5"/>
+          <rect x="5" y="8" width="22" height="4" rx="2" fill="#64748b" stroke="#cbd5e1" stroke-width="1.5"/>
+          <rect x="12" y="5" width="8" height="3" rx="1" fill="#cbd5e1"/>
+        </svg>
+        <span style="font-size: 10px; white-space: nowrap;">はじめから</span>
+      </button>
+    </div>
+
+    <div class="btn-group">
+      <button class="btn-square" id="btn-pen-black" onclick="togglePen('black')">
+        <svg class="icon" width="30" height="30" viewBox="0 0 24 24">
+          <path d="M4 17.25V20h2.75L17.81 8.94l-2.75-2.75L4 17.25z" fill="#000000" stroke="#000000" stroke-width="2" stroke-linejoin="round"/>
+          <path d="M17.81 8.94l2.75 2.75-1.83 1.83-2.75-2.75 1.83-1.83z" fill="#fde047" stroke="#fde047" stroke-width="2" stroke-linejoin="round"/>
+          <path d="M20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 2.75 2.75 1.83-1.83z" fill="#64748b" stroke="#64748b" stroke-width="2" stroke-linejoin="round"/>
+        </svg>
+        <span>くろ</span>
+      </button>
+      <button class="btn-square" id="btn-pen-red" onclick="togglePen('red')">
+        <svg class="icon" width="30" height="30" viewBox="0 0 24 24">
+          <path d="M4 17.25V20h2.75L17.81 8.94l-2.75-2.75L4 17.25z" fill="#ef4444" stroke="#ef4444" stroke-width="2" stroke-linejoin="round"/>
+          <path d="M17.81 8.94l2.75 2.75-1.83 1.83-2.75-2.75 1.83-1.83z" fill="#fde047" stroke="#fde047" stroke-width="2" stroke-linejoin="round"/>
+          <path d="M20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 2.75 2.75 1.83-1.83z" fill="#64748b" stroke="#64748b" stroke-width="2" stroke-linejoin="round"/>
+        </svg>
+        <span>あか</span>
+      </button>
+      <button class="btn-square" id="btn-pen-blue" onclick="togglePen('blue')">
+        <svg class="icon" width="30" height="30" viewBox="0 0 24 24">
+          <path d="M4 17.25V20h2.75L17.81 8.94l-2.75-2.75L4 17.25z" fill="#2563eb" stroke="#2563eb" stroke-width="2" stroke-linejoin="round"/>
+          <path d="M17.81 8.94l2.75 2.75-1.83 1.83-2.75-2.75 1.83-1.83z" fill="#fde047" stroke="#fde047" stroke-width="2" stroke-linejoin="round"/>
+          <path d="M20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 2.75 2.75 1.83-1.83z" fill="#64748b" stroke="#64748b" stroke-width="2" stroke-linejoin="round"/>
+        </svg>
+        <span>あお</span>
+      </button>
+      <button class="btn-square" id="btn-pen-erase" onclick="togglePen('erase')">
+        <svg class="icon" width="30" height="32" viewBox="0 0 32 32" fill="none">
+          <path d="M 7 13 C 7 5.5, 25 5.5, 25 13 Z" fill="#ffffff" stroke="#000000" stroke-width="2.5" stroke-linejoin="round" />
+          <rect x="7" y="13" width="6" height="15" fill="#1e1e1e" />
+          <rect x="13" y="13" width="6" height="15" fill="#ffffff" />
+          <rect x="19" y="13" width="6" height="15" fill="#2563eb" />
+          <line x1="13" y1="13" x2="13" y2="28" stroke="#000000" stroke-width="1.5" />
+          <line x1="19" y1="13" x2="19" y2="28" stroke="#000000" stroke-width="1.5" />
+          <rect x="7" y="13" width="18" height="15" stroke="#000000" stroke-width="2.5" fill="none" stroke-linejoin="round" />
+        </svg>
+        <span>けす</span>
+      </button>
+      <button class="btn-square" id="btn-pen-clear" onclick="clearPenStrokes()">
+        <svg class="icon" width="30" height="32" viewBox="0 0 32 32" fill="none">
+          <rect x="4" y="6" width="24" height="20" rx="3" stroke="#64748b" stroke-width="2.2" stroke-dasharray="4 3" fill="none"/>
+        </svg>
+        <span style="font-size: 10px; white-space: nowrap;">ぜんぶけす</span>
+      </button>
+    </div>
+
+    <div class="btn-group">
+      <button class="btn-square" id="btn-photo" onclick="takeScreenshot()">
+        <svg class="icon" width="28" height="26" viewBox="0 0 24 24" fill="#ec4899">
+          <path d="M4 4h3l2-2h6l2 2h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zm8 3a5 5 0 1 0 0 10 5 5 0 0 0 0-10zm0 2a3 3 0 1 1 0 6 3 3 0 0 1 0-6z"/>
+        </svg>
+        <span>しゃしん</span>
+      </button>
+    </div>
+  </div>
+
+  <button class="btn-add-left" onclick="spawnBlock('left')">＋</button>
+  <div id="count-left" class="count-badge count-left"></div>
+
+  <button class="btn-add-right" onclick="spawnBlock('right')">＋</button>
+  <div id="count-right" class="count-badge count-right"></div>
+
+  <button class="btn-stop" onclick="showPauseScreen()">とめる</button>
+
+  <div id="pause-screen">
+    <button class="btn-start" onclick="hidePauseScreen()">はじめる</button>
+    <div class="pause-text-container">
+      <div class="pause-text">よい しせいを しましょう。</div>
+    </div>
+  </div>
+</div>
+
+<script>
+  if (!CanvasRenderingContext2D.prototype.roundRect) {
+    CanvasRenderingContext2D.prototype.roundRect = function(x, y, w, h, radii) {
+      let r = radii || 0;
+      if (typeof r === 'number') {
+        r = [r, r, r, r];
+      } else if (Array.isArray(r)) {
+        if (r.length === 1) r = [r[0], r[0], r[0], r[0]];
+        else if (r.length === 2) r = [r[0], r[1], r[0], r[1]];
+        else if (r.length === 3) r = [r[0], r[1], r[2], r[1]];
+      } else {
+        r = [0, 0, 0, 0];
+      }
+      const [tl, tr, br, bl] = r;
+      this.moveTo(x + tl, y);
+      this.lineTo(x + w - tr, y);
+      this.quadraticCurveTo(x + w, y, x + w, y + tr);
+      this.lineTo(x + w, y + h - br);
+      this.quadraticCurveTo(x + w, y + h, x + w - br, y + h);
+      this.lineTo(x + bl, y + h);
+      this.quadraticCurveTo(x, y + h, x, y + h - bl);
+      this.lineTo(x, y + tl);
+      this.quadraticCurveTo(x, y, x + tl, y);
+      this.closePath();
+      return this;
+    };
+  }
+
+  const V_WIDTH = 1280;
+  const V_HEIGHT = 720;
+  const BLOCK_SIZE = 67.76;
+  const HALF_SIZE = BLOCK_SIZE / 2;
+  const DIFF_COLOR_GAP = 14.52;
+
+  // 子どもの自然な操作感に適した長押し時間 (0.35秒)
+  const LONG_PRESS_MS = 350;
+
+  const TRAY_COLS = 5;
+  const TRAY_ROWS = 2;
+  const TRAY_PAD_LEFT = 16;
+  const TRAY_PAD_TOP = 16;
+  const TRAY_OUTER_W = TRAY_PAD_LEFT * 2 + TRAY_COLS * BLOCK_SIZE;
+  const TRAY_OUTER_H = TRAY_PAD_TOP * 2 + TRAY_ROWS * BLOCK_SIZE;
+  const TRAY_GAP = 20;
+
+  const trashPos = { x: 1210, y: 650, radius: 40 };
+  let trashLidOpenProgress = 0;
+
+  let canvas = null;
+  let ctx = null;
+
+  let blocks = [];
+  let trays = [];
+  let penStrokes = [];
+  let historyStack = [];
+  let animatingBlocks = [];
+  let animatingTrays = [];
+
+  let currentType = 'orange';
+  let penMode = 'off';
+  let currentEraserPos = null;
+
+  const activePointers = new Map();
+  const flashTimers = {};
+
+  function showPauseScreen() {
+    turnOffPen();
+    const pauseScreen = document.getElementById('pause-screen');
+    if (pauseScreen) {
+      pauseScreen.style.display = 'flex';
+    }
+  }
+
+  function hidePauseScreen() {
+    const pauseScreen = document.getElementById('pause-screen');
+    if (pauseScreen) {
+      pauseScreen.style.display = 'none';
+    }
+  }
+
+  function flashButton(id) {
+    const btn = document.getElementById(id);
+    if (!btn) return;
+    btn.classList.add('active');
+    if (flashTimers[id]) {
+      clearTimeout(flashTimers[id]);
+    }
+    flashTimers[id] = setTimeout(() => {
+      btn.classList.remove('active');
+      delete flashTimers[id];
+    }, 1000);
+  }
+
+  function getTrayForBlock(b) {
+    for (const tray of trays) {
+      const innerX = tray.x + TRAY_PAD_LEFT;
+      const innerY = tray.y + TRAY_PAD_TOP;
+      const trayW = tray.cols * BLOCK_SIZE;
+      const trayH = tray.rows * BLOCK_SIZE;
+      if (
+        b.x >= innerX - 12 && b.x + BLOCK_SIZE <= innerX + trayW + 12 &&
+        b.y >= innerY - 12 && b.y + BLOCK_SIZE <= innerY + trayH + 12
+      ) {
+        return tray;
+      }
+    }
+    return null;
+  }
+
+  function isBlockInTray(b) {
+    return getTrayForBlock(b) !== null;
+  }
+
+  function isBlockNearTray(b) {
+    for (const tray of trays) {
+      const innerX = tray.x + TRAY_PAD_LEFT;
+      const innerY = tray.y + TRAY_PAD_TOP;
+      const trayW = tray.cols * BLOCK_SIZE;
+      const trayH = tray.rows * BLOCK_SIZE;
+      if (
+        b.x >= innerX - 40 && b.x + BLOCK_SIZE <= innerX + trayW + 40 &&
+        b.y >= innerY - 40 && b.y + BLOCK_SIZE <= innerY + trayH + 40
+      ) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  function getTrayCount(tray) {
+    if (!tray) return 0;
+    return blocks.filter(b => getTrayForBlock(b) === tray).length;
+  }
+
+  function init() {
+    canvas = document.getElementById('mainCanvas');
+    if (!canvas) return;
+    ctx = canvas.getContext('2d');
+
+    setupEventListeners();
+    saveState();
+    updateUI();
+    requestAnimationFrame(render);
+  }
+
+  function saveState() {
+    try {
+      if (historyStack.length > 30) historyStack.shift();
+      historyStack.push(JSON.stringify({
+        blocks: blocks,
+        trays: trays,
+        penStrokes: penStrokes
+      }));
+    } catch (e) {
+      console.warn("Failed to save state:", e);
+    }
+  }
+
+  function spawnBlock(side) {
+    try {
+      turnOffPen();
+      saveState();
+
+      const totalCols = 12;
+      const startY1 = 165;
+      const startY2 = startY1 + BLOCK_SIZE + 24;
+      const startX = 100;
+      const spacing = (V_WIDTH - startX * 2 - BLOCK_SIZE) / (totalCols - 1);
+
+      let targetX = 0, targetY = 0;
+      let placed = false;
+
+      for (let row = 0; row < 2 && !placed; row++) {
+        const y = (row === 0) ? startY1 : startY2;
+        for (let i = 0; i < totalCols; i++) {
+          const col = (side === 'left') ? i : (totalCols - 1 - i);
+          const x = startX + col * spacing;
+
+          const occupied = blocks.some(b => b && typeof b.x === 'number' && Math.hypot(b.x - x, b.y - y) < BLOCK_SIZE / 2);
+          if (!occupied) {
+            targetX = x;
+            targetY = y;
+            placed = true;
+            break;
+          }
+        }
+      }
+
+      if (placed) {
+        const newBlock = {
+          id: Date.now() + Math.random(),
+          type: currentType,
+          x: targetX,
+          y: targetY,
+          groupId: null,
+          spawnSide: side,
+          originSide: side
+        };
+        newBlock.groupId = newBlock.id;
+        blocks.push(newBlock);
+        updateConnections();
+        updateUI();
+      }
+    } catch (err) {
+      console.error("Error spawning block:", err);
+    }
+  }
+
+  function addTray() {
+    turnOffPen();
+    flashButton('btn-tray');
+    saveState();
+
+    const idx = trays.length;
+    let x = 120;
+    let y = 380;
+
+    if (idx === 1) {
+      x = 120 + TRAY_OUTER_W + TRAY_GAP;
+      y = 380;
+    } else if (idx === 2) {
+      x = 120;
+      y = 380 - TRAY_OUTER_H - TRAY_GAP;
+    } else if (idx > 2) {
+      const col = idx % 2;
+      const rowOffset = Math.floor(idx / 2);
+      x = 120 + col * (TRAY_OUTER_W + TRAY_GAP);
+      y = 380 - rowOffset * (TRAY_OUTER_H + TRAY_GAP);
+    }
+
+    trays.push({
+      id: Date.now() + Math.random(),
+      x: x,
+      y: y,
+      cols: TRAY_COLS,
+      rows: TRAY_ROWS
+    });
+
+    updateUI();
+  }
+
+  function resetAll() {
+    turnOffPen();
+    flashButton('btn-reset');
+    saveState();
+    blocks = [];
+    trays = [];
+    penStrokes = [];
+    updateUI();
+    updateConnections();
+  }
+
+  function takeScreenshot() {
+    turnOffPen();
+    flashButton('btn-photo');
+    const cropY = 80;
+    const cropH = V_HEIGHT - cropY;
+
+    const offCanvas = document.createElement('canvas');
+    offCanvas.width = V_WIDTH;
+    offCanvas.height = cropH;
+    const offCtx = offCanvas.getContext('2d');
+
+    offCtx.fillStyle = '#ffffff';
+    offCtx.fillRect(0, 0, V_WIDTH, cropH);
+
+    offCtx.save();
+    offCtx.translate(0, -cropY);
+
+    trays.forEach(tray => drawSingleTray(tray, offCtx));
+    drawPenStrokes(offCtx);
+    blocks.forEach(b => drawBlockSides(b, offCtx));
+    blocks.forEach(b => drawBlockTop(b, offCtx));
+
+    offCtx.restore();
+
+    try {
+      const dataUrl = offCanvas.toDataURL('image/png');
+      const link = document.createElement('a');
+      link.download = '数図ブロックボード.png';
+      link.href = dataUrl;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (e) {
+      console.error('Screenshot failed:', e);
+    }
+  }
+
+  function turnOffPen() {
+    penMode = 'off';
+    currentEraserPos = null;
+    document.querySelectorAll('.toolbar .btn-square').forEach(b => {
+      if (b.id.startsWith('btn-pen-')) b.classList.remove('active');
+    });
+  }
+
+  function clearPenStrokes() {
+    turnOffPen();
+    flashButton('btn-pen-clear');
+    if (penStrokes.length > 0) {
+      saveState();
+      penStrokes = [];
+    }
+  }
+
+  function togglePen(mode) {
+    if (penMode === mode) {
+      penMode = 'off';
+      currentEraserPos = null;
+    } else {
+      penMode = mode;
+    }
+    document.querySelectorAll('.toolbar .btn-square').forEach(b => {
+      if (b.id.startsWith('btn-pen-')) b.classList.remove('active');
+    });
+    if (penMode !== 'off') {
+      const targetBtn = document.getElementById('btn-pen-' + penMode);
+      if (targetBtn) targetBtn.classList.add('active');
+    }
+  }
+
+  function eraseStrokesAt(pos, radius = 22) {
+    if (!penStrokes || penStrokes.length === 0) return;
+    let newStrokes = [];
+    let modified = false;
+
+    for (const stroke of penStrokes) {
+      let currentSubPoints = [];
+      for (let i = 0; i < stroke.points.length; i++) {
+        const pt = stroke.points[i];
+        const dist = Math.hypot(pt.x - pos.x, pt.y - pos.y);
+        if (dist > radius) {
+          currentSubPoints.push(pt);
+        } else {
+          modified = true;
+          if (currentSubPoints.length > 1) {
+            newStrokes.push({ color: stroke.color, points: currentSubPoints });
+          }
+          currentSubPoints = [];
+        }
+      }
+      if (currentSubPoints.length > 1) {
+        newStrokes.push({ color: stroke.color, points: currentSubPoints });
+      }
+    }
+
+    if (modified) {
+      penStrokes = newStrokes;
+    }
+  }
+
+  function setType(type) {
+    turnOffPen();
+    currentType = type;
+    document.getElementById('btn-type-orange').classList.toggle('active', type === 'orange');
+    document.getElementById('btn-type-blue').classList.toggle('active', type === 'blue');
+  }
+
+  function updateUI() {
+    updateCounts();
+  }
+
+  function updateCounts() {
+    const leftCount = blocks.filter(b => b.originSide === 'left').length;
+    const rightCount = blocks.filter(b => b.originSide === 'right').length;
+    const elLeft = document.getElementById('count-left');
+    const elRight = document.getElementById('count-right');
+    if (elLeft) elLeft.textContent = leftCount > 0 ? leftCount : '';
+    if (elRight) elRight.textContent = rightCount > 0 ? rightCount : '';
+  }
+
+  function updateConnections() {
+    blocks.forEach(b => {
+      b.groupId = b.id;
+      b.alpha = 1.0;
+    });
+
+    for (let i = 0; i < blocks.length; i++) {
+      for (let j = i + 1; j < blocks.length; j++) {
+        const b1 = blocks[i];
+        const b2 = blocks[j];
+
+        const tray1 = getTrayForBlock(b1);
+        const tray2 = getTrayForBlock(b2);
+
+        if (tray1 || tray2) continue;
+        if (b1.spawnSide || b2.spawnSide) continue;
+
+        const dx = b2.x - b1.x;
+        const dy = b2.y - b1.y;
+
+        const isHoriz = Math.abs(Math.abs(dx) - BLOCK_SIZE) < 4 && Math.abs(dy) < 4;
+        const isDiffColor = (b1.type !== b2.type);
+        const expectedVertDist = isDiffColor ? (BLOCK_SIZE + DIFF_COLOR_GAP) : BLOCK_SIZE;
+        const isVert = Math.abs(Math.abs(dy) - expectedVertDist) < 4 && Math.abs(dx) < 4;
+
+        if (isHoriz || isVert) {
+          unionGroups(b1, b2);
+
+          if (isVert && isDiffColor) {
+            b1.alpha = 0.3;
+            b2.alpha = 0.3;
+          }
+        }
+      }
+    }
+  }
+
+  function unionGroups(b1, b2) {
+    const g1 = b1.groupId;
+    const g2 = b2.groupId;
+    if (g1 !== g2) {
+      blocks.forEach(b => {
+        if (b.groupId === g2) b.groupId = g1;
+      });
+    }
+  }
+
+  function moveGroup(groupId, deltaX, deltaY) {
+    const group = blocks.filter(b => b.groupId === groupId);
+    if (group.length === 0) return;
+
+    const minY = Math.min(...group.map(b => b.y));
+    if (minY + deltaY < 85) {
+      deltaY = 85 - minY;
+    }
+
+    group.forEach(b => {
+      b.x += deltaX;
+      b.y += deltaY;
+    });
+  }
+
+  function snapBlocksForGroup(movedGroupId) {
+    if (!movedGroupId) return;
+
+    let snapped = false;
+    const SNAP_THRESHOLD = 32;
+
+    const movedBlocks = blocks.filter(b => b.groupId === movedGroupId);
+    const otherBlocks = blocks.filter(b => b.groupId !== movedGroupId);
+
+    const isNearAnyTray = movedBlocks.some(b => isBlockNearTray(b));
+
+    if (isNearAnyTray) {
+      for (const tray of trays) {
+        if (getTrayCount(tray) >= 10) continue;
+        const innerX = tray.x + TRAY_PAD_LEFT;
+        const innerY = tray.y + TRAY_PAD_TOP;
+
+        for (const b of movedBlocks) {
+          for (let r = 0; r < tray.rows; r++) {
+            for (let c = 0; c < tray.cols; c++) {
+              const slotX = innerX + c * BLOCK_SIZE;
+              const slotY = innerY + r * BLOCK_SIZE;
+
+              const isSlotOccupied = blocks.some(tb => 
+                tb.groupId !== movedGroupId && 
+                Math.abs(tb.x - slotX) < 12 && 
+                Math.abs(tb.y - slotY) < 12
+              );
+
+              if (!isSlotOccupied && Math.hypot(b.x - slotX, b.y - slotY) < HALF_SIZE + 28) {
+                moveGroup(movedGroupId, slotX - b.x, slotY - b.y);
+                snapped = true;
+                break;
+              }
+            }
+            if (snapped) break;
+          }
+          if (snapped) break;
+        }
+        if (snapped) break;
+      }
+    }
+
+    if (!snapped) {
+      for (const b1 of movedBlocks) {
+        for (const b2 of otherBlocks) {
+          if (b2.spawnSide) continue;
+          if (isBlockInTray(b2)) continue;
+
+          const dx = b2.x - b1.x;
+          const dy = b2.y - b1.y;
+
+          if (Math.abs(dy) < SNAP_THRESHOLD && Math.abs(Math.abs(dx) - BLOCK_SIZE) < SNAP_THRESHOLD) {
+            const idealB1X = b2.x + (dx > 0 ? -BLOCK_SIZE : BLOCK_SIZE);
+            const idealB1Y = b2.y;
+            moveGroup(movedGroupId, idealB1X - b1.x, idealB1Y - b1.y);
+            snapped = true;
+            break;
+          } else {
+            const isDiffColor = (b1.type !== b2.type);
+            const targetVertDist = isDiffColor ? (BLOCK_SIZE + DIFF_COLOR_GAP) : BLOCK_SIZE;
+            if (Math.abs(dx) < SNAP_THRESHOLD && Math.abs(Math.abs(dy) - targetVertDist) < SNAP_THRESHOLD) {
+              const idealB1X = b2.x;
+              const idealB1Y = b2.y + (dy > 0 ? -targetVertDist : targetVertDist);
+              moveGroup(movedGroupId, idealB1X - b1.x, idealB1Y - b1.y);
+              snapped = true;
+              break;
+            }
+          }
+        }
+        if (snapped) break;
+      }
+    }
+
+    preventOverlap(movedGroupId);
+    updateConnections();
+  }
+
+  function preventOverlap(movedGroupId) {
+    if (!movedGroupId) return;
+
+    for (let iter = 0; iter < 20; iter++) {
+      let hasOverlap = false;
+      const movedBlocks = blocks.filter(b => b.groupId === movedGroupId);
+      const otherBlocks = blocks.filter(b => b.groupId !== movedGroupId);
+
+      if (movedBlocks.length === 0 || otherBlocks.length === 0) break;
+
+      let maxPushX = 0;
+      let maxPushY = 0;
+      let maxDist = 0;
+
+      for (const b1 of movedBlocks) {
+        for (const b2 of otherBlocks) {
+          const dx = b1.x - b2.x;
+          const dy = b1.y - b2.y;
+
+          const isDiffColor = (b1.type !== b2.type);
+          const minVertDist = isDiffColor ? (BLOCK_SIZE + DIFF_COLOR_GAP) : BLOCK_SIZE;
+          const minHorizDist = BLOCK_SIZE;
+
+          const absX = Math.abs(dx);
+          const absY = Math.abs(dy);
+
+          if (absX < minHorizDist - 1 && absY < minVertDist - 1) {
+            hasOverlap = true;
+            const overlapX = minHorizDist - absX;
+            const overlapY = minVertDist - absY;
+
+            let pushX = 0, pushY = 0;
+            if (overlapX < overlapY) {
+              pushX = dx >= 0 ? overlapX : -overlapX;
+            } else {
+              pushY = dy >= 0 ? overlapY : -overlapY;
+            }
+
+            const dist = Math.hypot(pushX, pushY);
+            if (dist > maxDist) {
+              maxDist = dist;
+              maxPushX = pushX;
+              maxPushY = pushY;
+            }
+          }
+        }
+      }
+
+      if (hasOverlap && (maxPushX !== 0 || maxPushY !== 0)) {
+        moveGroup(movedGroupId, maxPushX, maxPushY);
+      } else {
+        break;
+      }
+    }
+  }
+
+  function getPos(e) {
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = V_WIDTH / rect.width;
+    const scaleY = V_HEIGHT / rect.height;
+    return {
+      x: (e.clientX - rect.left) * scaleX,
+      y: (e.clientY - rect.top) * scaleY
+    };
+  }
+
+  function setupEventListeners() {
+    if (!canvas) return;
+
+    canvas.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+    });
+
+    canvas.addEventListener('pointerdown', (e) => {
+      canvas.setPointerCapture(e.pointerId);
+      const pos = getPos(e);
+
+      if (penMode === 'erase') {
+        saveState();
+        currentEraserPos = pos;
+        eraseStrokesAt(pos);
+        activePointers.set(e.pointerId, {
+          pointerId: e.pointerId,
+          type: 'eraser'
+        });
+        return;
+      }
+
+      if (penMode !== 'off') {
+        saveState();
+        const stroke = { color: penMode, points: [pos] };
+        penStrokes.push(stroke);
+        activePointers.set(e.pointerId, {
+          pointerId: e.pointerId,
+          type: 'pen',
+          stroke: stroke
+        });
+        return;
+      }
+
+      for (let i = trays.length - 1; i >= 0; i--) {
+        const tray = trays[i];
+        if (pos.x >= tray.x && pos.x <= tray.x + TRAY_OUTER_W && pos.y >= tray.y && pos.y <= tray.y + TRAY_OUTER_H) {
+          const clickedOnBlock = blocks.some(b => pos.x >= b.x && pos.x <= b.x + BLOCK_SIZE && pos.y >= b.y && pos.y <= b.y + BLOCK_SIZE);
+          if (!clickedOnBlock) {
+            saveState();
+            activePointers.set(e.pointerId, {
+              pointerId: e.pointerId,
+              type: 'tray',
+              trayId: tray.id,
+              startX: pos.x,
+              startY: pos.y,
+              lastX: pos.x,
+              lastY: pos.y
+            });
+            return;
+          }
+        }
+      }
+
+      let clickedDirectBlock = null;
+      for (let i = blocks.length - 1; i >= 0; i--) {
+        const b = blocks[i];
+        if (pos.x >= b.x && pos.x <= b.x + BLOCK_SIZE &&
+            pos.y >= b.y && pos.y <= b.y + BLOCK_SIZE) {
+          clickedDirectBlock = b;
+          break;
+        }
+      }
+
+      let hitGroupBlock = clickedDirectBlock;
+      if (!hitGroupBlock) {
+        const MARGIN = 22;
+        for (let i = blocks.length - 1; i >= 0; i--) {
+          const b = blocks[i];
+          const groupMembers = blocks.filter(bk => bk.groupId === b.groupId);
+          const minX = Math.min(...groupMembers.map(bk => bk.x)) - MARGIN;
+          const maxX = Math.max(...groupMembers.map(bk => bk.x)) + BLOCK_SIZE + MARGIN;
+          const minY = Math.min(...groupMembers.map(bk => bk.y)) - MARGIN;
+          const maxY = Math.max(...groupMembers.map(bk => bk.y)) + BLOCK_SIZE + MARGIN;
+
+          if (pos.x >= minX && pos.x <= maxX && pos.y >= minY && pos.y <= maxY) {
+            hitGroupBlock = b;
+            break;
+          }
+        }
+      }
+
+      if (hitGroupBlock) {
+        saveState();
+        hitGroupBlock.spawnSide = null;
+
+        const operatedGroupId = hitGroupBlock.groupId;
+        const groupMembers = blocks.filter(b => b.groupId === operatedGroupId);
+        const otherBlocks = blocks.filter(b => b.groupId !== operatedGroupId);
+        blocks = [...otherBlocks, ...groupMembers];
+
+        let isEndBlock = false;
+        let endType = null;
+        let isMiddleBlock = false;
+
+        if (clickedDirectBlock && groupMembers.length > 1) {
+          const xs = groupMembers.map(b => b.x);
+          const minX = Math.min(...xs);
+          const maxX = Math.max(...xs);
+
+          const isLeftEnd = Math.abs(clickedDirectBlock.x - minX) < 8;
+          const isRightEnd = Math.abs(clickedDirectBlock.x - maxX) < 8;
+
+          if (isLeftEnd) {
+            isEndBlock = true;
+            endType = 'left';
+          } else if (isRightEnd) {
+            isEndBlock = true;
+            endType = 'right';
+          } else {
+            isMiddleBlock = true;
+          }
+        }
+
+        const dragObj = {
+          pointerId: e.pointerId,
+          type: 'block',
+          blockId: hitGroupBlock.id,
+          groupId: hitGroupBlock.groupId,
+          startX: pos.x,
+          startY: pos.y,
+          lastX: pos.x,
+          lastY: pos.y,
+          selectedBlock: clickedDirectBlock,
+          isEndBlock: isEndBlock,
+          endType: endType,
+          isMiddleBlock: isMiddleBlock,
+          longPressed: false,
+          longPressTimer: null,
+          splitDone: false
+        };
+
+        // 端のブロックの長押しタイマー設定 (0.35秒)
+        if (isEndBlock) {
+          dragObj.longPressTimer = setTimeout(() => {
+            dragObj.longPressed = true;
+          }, LONG_PRESS_MS);
+        }
+
+        activePointers.set(e.pointerId, dragObj);
+        return;
+      }
+    });
+
+    canvas.addEventListener('pointermove', (e) => {
+      const p = activePointers.get(e.pointerId);
+      const pos = getPos(e);
+
+      if (penMode === 'erase') {
+        currentEraserPos = pos;
+      }
+
+      if (!p) return;
+
+      if (p.type === 'eraser') {
+        eraseStrokesAt(pos);
+        return;
+      }
+
+      if (p.type === 'pen' && p.stroke) {
+        p.stroke.points.push(pos);
+        return;
+      }
+
+      const totalDx = pos.x - p.startX;
+      const totalDy = pos.y - p.startY;
+      const dist = Math.hypot(totalDx, totalDy);
+
+      if (p.type === 'block') {
+        // スワイプ移動を開始した場合、長押しタイマーを解除（連結のまま移動）
+        if (dist > 8 && p.longPressTimer && !p.longPressed) {
+          clearTimeout(p.longPressTimer);
+          p.longPressTimer = null;
+        }
+
+        // 分離ロジックの判定
+        if (!p.splitDone && p.selectedBlock) {
+          const groupMembers = blocks.filter(bk => bk.groupId === p.groupId);
+
+          if (groupMembers.length > 1) {
+            // 【仕様2】端のブロック：長押し ＋ 反対方向への移動で分離
+            if (p.isEndBlock && p.longPressed) {
+              let shouldDetach = false;
+
+              if (p.endType === 'right' && totalDx > 6) {
+                // 右端ブロック：右方向（右斜め上・右斜め下含む）へ移動で分離
+                shouldDetach = true;
+              } else if (p.endType === 'left' && totalDx < -6) {
+                // 左端ブロック：左方向（左斜め上・左斜め下含む）へ移動で分離
+                shouldDetach = true;
+              }
+
+              if (shouldDetach) {
+                p.splitDone = true;
+                const newGroupId = Date.now() + Math.random();
+                p.selectedBlock.groupId = newGroupId;
+                p.groupId = newGroupId;
+              }
+            }
+
+            // 【仕様3】端以外のブロック（中央）：スワイプ方向に応じた分離
+            if (p.isMiddleBlock) {
+              if (totalDx > 10) {
+                // 右にスワイプ：選択ブロックから左と分離し、右に並んだブロックと連なって移動
+                p.splitDone = true;
+                const targetX = p.selectedBlock.x;
+                const splitBlocks = groupMembers.filter(bk => bk.x >= targetX - 5);
+
+                if (splitBlocks.length < groupMembers.length && splitBlocks.length > 0) {
+                  const newGroupId = Date.now() + Math.random();
+                  splitBlocks.forEach(bk => bk.groupId = newGroupId);
+                  p.groupId = newGroupId;
+                }
+              } else if (totalDx < -10) {
+                // 左にスワイプ：選択ブロックから右と分離し、左に並んだブロックと連なって移動
+                p.splitDone = true;
+                const targetX = p.selectedBlock.x;
+                const splitBlocks = groupMembers.filter(bk => bk.x <= targetX + 5);
+
+                if (splitBlocks.length < groupMembers.length && splitBlocks.length > 0) {
+                  const newGroupId = Date.now() + Math.random();
+                  splitBlocks.forEach(bk => bk.groupId = newGroupId);
+                  p.groupId = newGroupId;
+                }
+              }
+            }
+          }
+        }
+      }
+
+      const dx = pos.x - p.lastX;
+      const dy = pos.y - p.lastY;
+
+      if (p.type === 'tray') {
+        const targetTray = trays.find(t => t.id === p.trayId);
+        if (targetTray) {
+          blocks.forEach(b => {
+            if (getTrayForBlock(b) === targetTray) {
+              b.x += dx;
+              b.y += dy;
+            }
+          });
+          targetTray.x += dx;
+          targetTray.y += dy;
+        }
+      } else if (p.type === 'block') {
+        moveGroup(p.groupId, dx, dy);
+      }
+
+      let isNearTrash = false;
+      if (p.type === 'block') {
+        const movedBlocks = blocks.filter(b => b.groupId === p.groupId);
+        isNearTrash = movedBlocks.some(b => Math.hypot(b.x + HALF_SIZE - trashPos.x, b.y + HALF_SIZE - trashPos.y) < 180);
+      } else if (p.type === 'tray') {
+        const targetTray = trays.find(t => t.id === p.trayId);
+        if (targetTray) {
+          const closestX = Math.max(targetTray.x, Math.min(trashPos.x, targetTray.x + TRAY_OUTER_W));
+          const closestY = Math.max(targetTray.y, Math.min(trashPos.y, targetTray.y + TRAY_OUTER_H));
+          isNearTrash = Math.hypot(trashPos.x - closestX, trashPos.y - closestY) < 180;
+        }
+      }
+
+      if (isNearTrash) {
+        trashLidOpenProgress = Math.min(1.0, trashLidOpenProgress + 0.15);
+      } else {
+        trashLidOpenProgress = Math.max(0.0, trashLidOpenProgress - 0.1);
+      }
+
+      p.lastX = pos.x;
+      p.lastY = pos.y;
+    });
+
+    const handlePointerEnd = (e) => {
+      const p = activePointers.get(e.pointerId);
+      if (penMode === 'erase') {
+        currentEraserPos = null;
+      }
+      if (!p) return;
+
+      if (p.longPressTimer) {
+        clearTimeout(p.longPressTimer);
+        p.longPressTimer = null;
+      }
+
+      if (p.type === 'tray') {
+        const targetTray = trays.find(t => t.id === p.trayId);
+        if (targetTray) {
+          const closestX = Math.max(targetTray.x, Math.min(trashPos.x, targetTray.x + TRAY_OUTER_W));
+          const closestY = Math.max(targetTray.y, Math.min(trashPos.y, targetTray.y + TRAY_OUTER_H));
+          const distToTrayEdge = Math.hypot(trashPos.x - closestX, trashPos.y - closestY);
+
+          if (distToTrayEdge < trashPos.radius + 15) {
+            const trayBlocks = blocks.filter(b => getTrayForBlock(b) === targetTray);
+            animatingTrays.push({
+              tray: targetTray,
+              blocks: trayBlocks,
+              startX: targetTray.x,
+              startY: targetTray.y,
+              progress: 0
+            });
+            blocks = blocks.filter(b => getTrayForBlock(b) !== targetTray);
+            trays = trays.filter(t => t.id !== targetTray.id);
+            updateUI();
+            updateConnections();
+          }
+        }
+      }
+
+      if (p.type === 'block') {
+        snapBlocksForGroup(p.groupId);
+
+        const movedBlocks = blocks.filter(b => b.groupId === p.groupId);
+        const inTrash = movedBlocks.some(b => Math.hypot(b.x + HALF_SIZE - trashPos.x, b.y + HALF_SIZE - trashPos.y) < trashPos.radius + 24);
+
+        if (inTrash) {
+          movedBlocks.forEach(b => {
+            animatingBlocks.push({
+              block: b,
+              startX: b.x,
+              startY: b.y,
+              progress: 0
+            });
+          });
+          blocks = blocks.filter(b => b.groupId !== p.groupId);
+          updateUI();
+          updateConnections();
+        }
+      }
+
+      activePointers.delete(e.pointerId);
+    };
+
+    canvas.addEventListener('pointerup', handlePointerEnd);
+    canvas.addEventListener('pointercancel', handlePointerEnd);
+  }
+
+  function render() {
+    try {
+      ctx.clearRect(0, 0, V_WIDTH, V_HEIGHT);
+
+      if (activePointers.size === 0) {
+        trashLidOpenProgress = Math.max(0.0, trashLidOpenProgress - 0.08);
+      }
+
+      trays.forEach(tray => drawSingleTray(tray));
+
+      drawPenStrokes();
+
+      if (penMode === 'erase' && currentEraserPos) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(currentEraserPos.x, currentEraserPos.y, 22, 0, Math.PI * 2);
+        ctx.fillStyle = "rgba(244, 114, 182, 0.25)";
+        ctx.strokeStyle = "#ec4899";
+        ctx.lineWidth = 2;
+        ctx.fill();
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      if (Array.isArray(blocks)) {
+        blocks.forEach(b => { if (b && typeof b.x === 'number') drawBlockSides(b); });
+        blocks.forEach(b => { if (b && typeof b.x === 'number') drawBlockTop(b); });
+      }
+
+      for (let i = animatingBlocks.length - 1; i >= 0; i--) {
+        const anim = animatingBlocks[i];
+        if (!anim) continue;
+        anim.progress += 0.08;
+        if (anim.progress >= 1.0) {
+          animatingBlocks.splice(i, 1);
+          continue;
+        }
+        drawAnimatingBlock(anim);
+      }
+
+      for (let i = animatingTrays.length - 1; i >= 0; i--) {
+        const anim = animatingTrays[i];
+        if (!anim) continue;
+        anim.progress += 0.08;
+        if (anim.progress >= 1.0) {
+          animatingTrays.splice(i, 1);
+          continue;
+        }
+        drawAnimatingTray(anim);
+      }
+
+      drawTrashCan();
+    } catch (err) {
+      console.error("Render loop error:", err);
+    }
+
+    requestAnimationFrame(render);
+  }
+
+  function drawBlockSides(b, targetCtx = ctx) {
+    const x = b.x;
+    const y = b.y;
+    const s = BLOCK_SIZE;
+    const depth = 12;
+
+    targetCtx.save();
+    targetCtx.globalAlpha = b.alpha || 1.0;
+
+    targetCtx.fillStyle = "#cbd5e1";
+    targetCtx.beginPath();
+    targetCtx.moveTo(x + s, y + 7);
+    targetCtx.lineTo(x + s + depth, y + 7 + depth);
+    targetCtx.lineTo(x + s + depth, y + s + depth - 7);
+    targetCtx.quadraticCurveTo(x + s + depth, y + s + depth, x + s + depth - 7, y + s + depth);
+    targetCtx.lineTo(x + 7 + depth, y + s + depth);
+    targetCtx.lineTo(x + 7, y + s);
+    targetCtx.lineTo(x + s - 7, y + s);
+    targetCtx.quadraticCurveTo(x + s, y + s, x + s, y + s - 7);
+    targetCtx.closePath();
+    targetCtx.fill();
+
+    targetCtx.restore();
+  }
+
+  function drawBlockTop(b, targetCtx = ctx) {
+    const x = b.x;
+    const y = b.y;
+    const s = BLOCK_SIZE;
+    const r = 10;
+
+    targetCtx.save();
+    targetCtx.globalAlpha = b.alpha || 1.0;
+
+    targetCtx.fillStyle = "#ffffff";
+    targetCtx.strokeStyle = "#94a3b8";
+    targetCtx.lineWidth = 2.4;
+    targetCtx.beginPath();
+    targetCtx.roundRect(x, y, s, s, r);
+    targetCtx.fill();
+    targetCtx.stroke();
+
+    if (b.type === 'orange') {
+      targetCtx.fillStyle = "#f97316";
+      targetCtx.beginPath();
+      targetCtx.arc(x + s / 2, y + s / 2, s * 0.28, 0, Math.PI * 2);
+      targetCtx.fill();
+    } else {
+      targetCtx.fillStyle = "#2563eb";
+      const markS = s * 0.48;
+      targetCtx.beginPath();
+      targetCtx.roundRect(x + (s - markS) / 2, y + (s - markS) / 2, markS, markS, 5);
+      targetCtx.fill();
+    }
+
+    targetCtx.restore();
+  }
+
+  function drawAnimatingBlock(anim) {
+    const p = anim.progress;
+    const currentX = anim.startX + (trashPos.x - anim.startX) * p;
+    const currentY = anim.startY + (trashPos.y - anim.startY) * p;
+    const scale = 1.0 - p * 0.8;
+
+    ctx.save();
+    ctx.translate(currentX, currentY);
+    ctx.scale(scale, scale);
+    ctx.rotate(p * Math.PI * 2);
+    ctx.globalAlpha = 1.0 - p;
+
+    ctx.fillStyle = "#ffffff";
+    ctx.strokeStyle = "#94a3b8";
+    ctx.lineWidth = 2.4;
+    ctx.beginPath();
+    ctx.roundRect(-HALF_SIZE, -HALF_SIZE, BLOCK_SIZE, BLOCK_SIZE, 10);
+    ctx.fill();
+    ctx.stroke();
+
+    if (anim.block.type === 'orange') {
+      ctx.fillStyle = "#f97316";
+      ctx.beginPath();
+      ctx.arc(0, 0, BLOCK_SIZE * 0.28, 0, Math.PI * 2);
+      ctx.fill();
+    } else {
+      ctx.fillStyle = "#2563eb";
+      const markS = BLOCK_SIZE * 0.48;
+      ctx.beginPath();
+      ctx.roundRect(-markS / 2, -markS / 2, markS, markS, 5);
+      ctx.fill();
+    }
+
+    ctx.restore();
+  }
+
+  function drawAnimatingTray(anim) {
+    const p = anim.progress;
+    const trayCenterX = anim.startX + TRAY_OUTER_W / 2;
+    const trayCenterY = anim.startY + TRAY_OUTER_H / 2;
+
+    const currentCenterX = trayCenterX + (trashPos.x - trayCenterX) * p;
+    const currentCenterY = trayCenterY + (trashPos.y - trayCenterY) * p;
+    const scale = Math.max(0, 1.0 - p);
+
+    ctx.save();
+    ctx.translate(currentCenterX, currentCenterY);
+    ctx.scale(scale, scale);
+    ctx.globalAlpha = Math.max(0, 1.0 - p);
+
+    const tempTray = {
+      x: -TRAY_OUTER_W / 2,
+      y: -TRAY_OUTER_H / 2,
+      cols: anim.tray.cols,
+      rows: anim.tray.rows
+    };
+    drawSingleTray(tempTray, ctx);
+
+    anim.blocks.forEach(b => {
+      const relX = b.x - trayCenterX;
+      const relY = b.y - trayCenterY;
+      const tempBlock = { ...b, x: relX, y: relY };
+      drawBlockSides(tempBlock, ctx);
+      drawBlockTop(tempBlock, ctx);
+    });
+
+    ctx.restore();
+  }
+
+  function drawSingleTray(tray, targetCtx = ctx) {
+    targetCtx.save();
+    targetCtx.fillStyle = "#f8fafc";
+    targetCtx.strokeStyle = "#2563eb";
+    targetCtx.lineWidth = 7;
+    targetCtx.beginPath();
+    targetCtx.roundRect(tray.x, tray.y, TRAY_OUTER_W, TRAY_OUTER_H, 16);
+    targetCtx.fill();
+    targetCtx.stroke();
+
+    const innerX = tray.x + TRAY_PAD_LEFT;
+    const innerY = tray.y + TRAY_PAD_TOP;
+    targetCtx.strokeStyle = "#cbd5e1";
+    targetCtx.lineWidth = 2;
+    for (let r = 0; r < tray.rows; r++) {
+      for (let c = 0; c < tray.cols; c++) {
+        const sx = innerX + c * BLOCK_SIZE;
+        const sy = innerY + r * BLOCK_SIZE;
+        targetCtx.strokeRect(sx, sy, BLOCK_SIZE, BLOCK_SIZE);
+      }
+    }
+    targetCtx.restore();
+  }
+
+  function drawPenStrokes(targetCtx = ctx) {
+    targetCtx.save();
+    targetCtx.lineCap = 'round';
+    targetCtx.lineJoin = 'round';
+    targetCtx.lineWidth = 3.36;
+
+    penStrokes.forEach(stroke => {
+      if (stroke.points.length < 2) return;
+      targetCtx.strokeStyle = stroke.color === 'red' ? '#ef4444' : stroke.color === 'blue' ? '#3b82f6' : '#000000';
+      targetCtx.beginPath();
+      targetCtx.moveTo(stroke.points[0].x, stroke.points[0].y);
+      for (let i = 1; i < stroke.points.length; i++) {
+        targetCtx.lineTo(stroke.points[i].x, stroke.points[i].y);
+      }
+      targetCtx.stroke();
+    });
+    targetCtx.restore();
+  }
+
+  function drawTrashCan() {
+    const x = trashPos.x;
+    const y = trashPos.y;
+
+    ctx.save();
+
+    const topW = 30;
+    const botW = 22;
+    const topY = y - 10;
+    const botY = y + 36;
+
+    const darkGray = "#64748b";
+    const lightGrayLine = "#cbd5e1";
+
+    ctx.fillStyle = darkGray;
+    ctx.strokeStyle = lightGrayLine;
+    ctx.lineWidth = 2.4;
+
+    ctx.beginPath();
+    ctx.moveTo(x - topW, topY);
+    ctx.lineTo(x + topW, topY);
+    ctx.lineTo(x + botW, botY);
+    ctx.quadraticCurveTo(x + botW, botY + 7, x + botW - 7, botY + 7);
+    ctx.lineTo(x - botW + 7, botY + 7);
+    ctx.quadraticCurveTo(x - botW, botY + 7, x - botW, botY);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.strokeStyle = lightGrayLine;
+    ctx.lineWidth = 1.8;
+    ctx.beginPath();
+    ctx.moveTo(x - 12, topY + 7); ctx.lineTo(x - 8, botY - 2);
+    ctx.moveTo(x, topY + 7); ctx.lineTo(x, botY - 2);
+    ctx.moveTo(x + 12, topY + 7); ctx.lineTo(x + 8, botY - 2);
+    ctx.stroke();
+
+    ctx.save();
+    ctx.translate(x + topW, topY);
+    const lidAngle = trashLidOpenProgress * 0.85;
+    ctx.rotate(lidAngle);
+
+    ctx.fillStyle = darkGray;
+    ctx.strokeStyle = lightGrayLine;
+    ctx.lineWidth = 1.8;
+    ctx.beginPath();
+    ctx.roundRect(-topW * 2 - 5, -7, topW * 2 + 5, 8, 4);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = lightGrayLine;
+    ctx.beginPath();
+    ctx.roundRect(-topW - 7, -13, 14, 6, 2);
+    ctx.fill();
+
+    ctx.restore();
+    ctx.restore();
+  }
+
+  window.onload = init;
+</script>
+</body>
+</html>
